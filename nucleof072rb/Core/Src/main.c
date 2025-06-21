@@ -68,6 +68,9 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+	// set transmit and receive buffers
+    uint8_t transmit_buffer[3] = {0b00000001, 0b10000000, 0b00000000};
+    uint8_t receive_buffer[3] = {0};
 
   /* USER CODE END 1 */
 
@@ -94,16 +97,40 @@ int main(void)
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
 
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET); // set chip select pin to high (to reset system)
+  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 2824); // set pwm duty cycle to 5% initially
+  HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+     HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_RESET);					   // set chip select pin to low to start communication with adc
+	 HAL_SPI_TransmitReceive(&hspi1, transmit_buffer, receive_buffer, 3, 10);  // use function to send and receive bits from adc
+	 HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET);					   // set chip select pin to high once communication ends
+
+
+	 /*
+	  * Use bit masking to get only last two bits from second byte
+	  * Then shift those by 8 to move to msb place value
+	  * Finally logic OR them with third byte to get a final 10-bit output
+	  */
+	 uint16_t adc_value = ((receive_buffer[1] & 0x03) << 8) | receive_buffer[2];
+
+	 /*
+	  * Convert 10-bit adc value to a counter value for duty cycle (timer period is 64000 and prescaler is 14)
+	  * Works by multiplying adc value by a factor of (3200 (5% duty cycle of PWM max count) / 1024 (max adc output value))
+	  * And then adding 3200 to scaled value (if adc output is 0, duty cycle is 5% otherwise scales up by a linear factor to a max of 6400 (10% duty cycle)
+	  * And finally typecasted to a uint32_t type
+	  */
+	 uint32_t adc_to_counts = (uint32_t)(adc_value * 3.125 + 3200);
+
+     __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, adc_to_counts); // set compare register to duty cycle counts
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-	 HAL_Delay(10);
+	 HAL_Delay(10); // add delay of 10ms to not overload adc
   }
   /* USER CODE END 3 */
 }
