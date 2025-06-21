@@ -98,7 +98,7 @@ int main(void)
   /* USER CODE BEGIN 2 */
 
   HAL_GPIO_WritePin(GPIOB, GPIO_PIN_8, GPIO_PIN_SET); // set chip select pin to high (to reset system)
-  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 2824); // set pwm duty cycle to 5% initially
+  __HAL_TIM_SET_COMPARE(&htim1, TIM_CHANNEL_1, 3200); // set pwm duty cycle to 5% initially
   HAL_TIM_PWM_Start(&htim1, TIM_CHANNEL_1);
   /* USER CODE END 2 */
 
